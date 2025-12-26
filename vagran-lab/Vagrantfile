@@ -1,0 +1,42 @@
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "generic/rocky9"
+
+
+  # Initial provisioning step: forcibly set DNS servers to Google's public DNS (8.8.8.8 and 8.8.4.4).
+  # This is a workaround for common DNS resolution issues in VirtualBox NAT mode, especially when the host
+  # network changes (e.g., connecting to VPNs). Note: This change to /etc/resolv.conf is not persistent across reboots
+  # because NetworkManager typically manages the file in Rocky Linux 9.
+  config.vm.provision "shell", inline: <<-SHELL
+  	echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
+  	echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf > /dev/null
+	SHELL
+
+	# Configure port forwarding: map host port 8080 (localhost only) to guest port 80 (standard HTTP port).
+  # This allows the host machine to access the guest's web server at http://localhost:8080.
+  # Binding to 127.0.0.1 enhances security by preventing access from other machines on the local network.
+	config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
+
+	# Main provisioning step: execute an external shell script named "provision.sh" located in the same directory
+  # as this Vagrantfile. This script typically handles package installation (e.g., httpd), service startup,
+  # firewall configuration, SELinux context restoration, and any other system setup required for the web server.
+  config.vm.provision "shell", path:"provision.sh"
+
+  # Configure a one-way synced folder using rsync.
+  # Local directory "./html" (relative to the Vagrantfile) is synchronized to "/var/www/html" on the guest
+  # (default document root for Apache on Rocky Linux).
+  # Rsync is chosen for better performance compared to default VirtualBox shared folders, especially with large files.
+	config.vm.synced_folder "html", "/var/www/html", type: "rsync",
+		# Custom rsync arguments:
+    # --verbose: provide detailed output during sync (useful for debugging)
+    # --archive: preserve permissions, timestamps, and symbolic links (recursive mode)
+    # --delete: remove files on the guest that no longer exist on the host (keeps directories in sync)
+    # -z: enable compression during transfer
+    # --copy-links: follow and copy symbolic links as regular files
+  	rsync__args: ["--verbose", "--archive", "--delete", "-z", "--copy-links"],
+  	# Exclude patterns to prevent unnecessary or problematic files from being synchronized:
+    # ".git/": avoid syncing Git repository metadata
+    # "*.log": prevent propagation of log files that may grow large or contain sensitive data
+  	rsync__exclude: [".git/", "*.log"]
+end
+
