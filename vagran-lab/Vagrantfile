@@ -1,5 +1,34 @@
+# VirtualBox Guest Additions
+unless Vagrant.has_plugin?("vagrant-vbguest")
+  warn "\n\n**********************************************************\n\n"+
+       "                          ATTENTION !!!                        \n\n"+
+       "vagrant-vbguest was not located on the host machine. \n\n"+
+       "To avoid incompatibilities of versions between VirtualBox and\n"+
+       "VBGuest Addition it's use is recommended         \n"+
+       "To fix this problem, run the following command \n"+
+       "on the root directory of the project. \n\n"+
+       "> vagrant plugin install vagrant-vbguest                     \n"+
+       "\n********************************************************** \n\n"+
+       " Press ENTER to continue or (Ctrl + C) finish ... \n\n"
+  $stdin.gets; puts "\n"
+end
+
 
 Vagrant.configure("2") do |config|
+  ## Plugin installation for automatic disk configuration.
+  required_plugins = %w( vagrant-vbguest vagrant-disksize )
+  _retry = false
+  required_plugins.each do |plugin|
+    unless Vagrant.has_plugin? plugin
+      system "vagrant plugin install #{plugin}"
+      _retry=true
+    end
+  end
+  if (_retry)
+    exec "vagrant " + ARGV.join(' ')
+  end
+
+
   config.vm.box = "generic/rocky9"
 
 
