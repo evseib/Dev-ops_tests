@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 echo "Configuring Apache..."
-
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
+echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf > /dev/null
 sudo dnf install -y httpd
 
 # Desativa página de teste (caso ainda ativa)

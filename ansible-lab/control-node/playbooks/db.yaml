@@ -1,0 +1,21 @@
+---
+- name: Setting up database server
+  hosts: db01
+
+  user: vagrant
+  become: yes #basically a become root? yes
+  vars_files:
+    - vars/main.yaml
+  vars:
+    - dbname: "db01"
+    - dbusername: "root"
+    - dbpassword: "devopsmaonamassa" #to fix later
+
+  roles:
+    - config-default-so
+    - role: geerlingguy.mysql
+      mysql_users:
+        - name: notesapp
+          host: '%'
+          password: devopsmaonamassa
+          priv: 'notes.*:ALL'

@@ -1,0 +1,16 @@
+[Unit]
+Description=Easy Notes Application
+After=network.target
+
+[Service]
+User=app
+WorkingDirectory=/opt/notes
+ExecStart=/usr/bin/java -jar /opt/notes/target/easy-notes-1.0.0.jar
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=notes-app
+
+[Install]
+WantedBy=multi-user.target

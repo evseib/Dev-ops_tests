@@ -1,0 +1,99 @@
+---
+- name: Configure Java server application
+  hosts: app01
+  user: vagrant
+  become: yes
+  vars:
+    - dbhost: "db01"
+    - dbname: "notes"
+    - dbusername: "notesapp"
+    - dbpassword: "devopsmaonamassa"
+
+  tasks:
+
+    - name: Add app user
+      user:
+        name: app
+        comment: Application user
+        uid: 500
+
+    - name: Maven installation
+      yum:
+        name: maven
+        state: latest
+
+    - name: Install Java
+      yum:
+        name: java-1.8.0-openjdk
+        state: latest
+
+    - name: Creating the application directory (as root)
+      file:
+        path: /opt/notes
+        state: directory
+        owner: app
+        group: app
+        mode: '0755'
+      become: yes
+      #become_user: app
+
+    - name: git client installation
+      yum:
+        name: git
+        state: latest
+
+    - name: Clone repository Notes - app
+      git:
+        repo: 'https://github.com/callicoder/spring-boot-mysql-rest-api-tutorial.git'
+        dest: /opt/notes
+        clone: yes
+        force: yes
+        update: yes
+      become: yes
+      become_user: app
+
+    - name: Configure the property files for database layer
+      template:
+        src: application.properties
+        dest: /opt/notes/src/main/resources/application.properties
+
+    - name: Generate application package
+      command: mvn -f /opt/notes/pom.xml clean package -DskipTests
+      become_user: app
+      args:
+        chdir: /opt/notes
+
+    - name: Register current package version.
+      shell:
+        cmd: mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:exec
+        chdir: /opt/notes/
+      register: app_version
+      become_user: app
+
+    - name: Configure Systemd service
+      ansible.builtin.template:
+        src: notes.service.j2   # Arquivo em templates/notes.service.j2
+        dest: /etc/systemd/system/notes.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify: reload daemon
+      become: yes
+
+    - name: Start Service notes
+      service:
+        name: notes
+        state: restarted
+
+  roles:
+    - config-default-so
+
+  handlers:
+    - name: reload app
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: 'notes'
+    - name: reload daemon
+      systemd:
+        daemon_reexec: yes
